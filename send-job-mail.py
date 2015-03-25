@@ -22,7 +22,7 @@ parser.add_argument(
     '--short-msg',
     '-a',
     type=str,
-    default=None,
+    default="",
     help='Short message to include in subject (default=msg)')
 parser.add_argument(
     'msg',
@@ -48,7 +48,7 @@ if dest is None:
     print 'Either supply "--send-to" or set "mailbox" as a enviroment variable'
     exit()    
 smsg = args.short_msg
-if smsg is None:
+if smsg is "":
     smsg = msg
 
 def PBS(var):

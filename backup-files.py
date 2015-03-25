@@ -97,7 +97,7 @@ else:
 
 # Take actions on each file
 for filename in args.filenames:
-    os.system("{0} {1} {2}".format(args.action,
+    os.system("{0} {1} {2} 2>/dev/null || :".format(args.action,
                                    filename,
                                    dirname))
 

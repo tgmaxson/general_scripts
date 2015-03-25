@@ -1,0 +1,85 @@
+#! /bin/bash
+
+# trim $text
+# $text: The text to trim the whitespace off the beginning and end of
+# echos: Trimmed text
+function trim {
+    local var="$*"
+    var="${var#"${var%%[![:space:]]*}"}"
+    var="${var%"${var##*[![:space:]]}"}"
+    echo -n "$var"
+}
+
+
+# send_mail $action $action_short
+# $action: The status to report on the job
+# $action_detailed: The status to report on the job
+function send_mail {
+    local mail_action=$1
+    local mail_action_short=$2
+    ${UTILPATH}/send-job-mail.py -a "${mail_action_short}" "${mail_action}"
+}
+
+
+# check_vasp_convergence                                                                    
+# echos: Converged, Unconverged, Missing
+function check_convergence {
+    if [ -s OUTCAR ]
+    then
+        if [ $(grep accuracy OUTCAR | wc -l) -gt 0 ]; then
+            echo Converged
+        else
+            echo Unconverged
+        fi
+    else
+        echo Missing
+    fi
+}
+
+
+# check_startable
+# echos : Startable or list of missing files.
+function check_startable {
+    local startable_files=""
+    local filename=""
+
+    for filename in POSCAR POTCAR KPOINTS INCAR
+    do
+        if [ ! -s ${filename} ]; then
+           echo ${filename}
+           startable_files=${filename} ${startable_files}
+        fi
+    done
+    startable_files=`trim ${startable_files}`
+    startable_files=${startablefiles:-Startable}
+    echo ${startable_files}
+}
+
+
+# backup_calculation
+# global $suffix: Will take a suffix from the environment to append directory name with
+# global $prefix: Will take a prefix from the environment to prepend directory name with
+# global $backupfiles: Will take a list of filenames to backup
+function backup_calculation {
+    local dir=$(${UTILPATH}/backup-files.py --suffix ${suffix:-""} --prefix ${prefix:-OLD-} --padding ${padding:-5} ${backupfiles:-POSCAR INCAR KPOINTS IBZKPTS OUTCAR OSZICAR *.output *.error})
+    mv *.error *.output ${dir} 2>/dev/null || :
+}
+
+
+# remove_extra
+# global $removefiles: Will take a list of filenames to remove at start and end
+function remove_extra {
+    rm ${removefiles:-nodefile* CHG* DOSCAR EIGENVAL PCDAT PROCAR XDATCAR vasprun.xml FORCECAR} 2>/dev/null || :
+}
+
+
+# resubmit_job
+# echos: Job ID or "None"
+function resubmit_job {
+    SUB=`expr ${SUB} + 1`
+    if [ ${SUB} -le ${resubmissions} ]; then
+        echo $(qsub -N "${PBS_JOBNAME}" -W depend="afterany:${PBS_JOBID}" -v SUB=${SUB} ${script_name})
+    else
+        echo None
+    fi
+}
